@@ -1,5 +1,5 @@
 resource "aws_ecr_repository" "app" {
-  name                 = "aws-cicd-lab"
+  name                 = var.project_name
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -9,4 +9,6 @@ resource "aws_ecr_repository" "app" {
   encryption_configuration {
     encryption_type = "AES256"
   }
+
+  tags = local.common_tags
 }
