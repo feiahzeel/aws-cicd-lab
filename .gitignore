@@ -30,3 +30,5 @@ venv/
 # Terraform plan files
 *.tfplan
 tfplan
+
+!terraform/terraform.tfvars
