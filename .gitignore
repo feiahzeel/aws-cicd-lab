@@ -32,3 +32,5 @@ venv/
 tfplan
 
 !terraform/terraform.tfvars
+
+!terraform/dev.tfvars
