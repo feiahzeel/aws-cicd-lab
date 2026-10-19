@@ -1,0 +1,58 @@
+name: Docker Build and Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build-test:
+    name: Build and test Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t aws-cicd-lab:ci \
+            -f app/Dockerfile \
+            app
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --name aws-cicd-lab-test \
+            -p 8080:8080 \
+            aws-cicd-lab:ci
+
+      - name: Test application endpoints
+        run: |
+          set -e
+
+          for i in {1..15}; do
+            if curl --fail --silent http://localhost:8080/health; then
+              break
+            fi
+
+            if [ "$i" -eq 15 ]; then
+              echo "ERROR: Application health check failed"
+              docker logs aws-cicd-lab-test
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          curl --fail --silent http://localhost:8080/ \
+            | grep -Fx "AWS CI/CD Lab - Hello World!"
+
+      - name: Remove test container
+        if: always()
+        run: docker rm -f aws-cicd-lab-test || true
+
