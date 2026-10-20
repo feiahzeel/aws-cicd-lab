@@ -1,9 +1,9 @@
-from app.app import app
+
+from app.app import app as flask_app
 
 
 def test_home_returns_hello_world():
-    client = app.test_client()
-
+    client = flask_app.test_client()
     response = client.get("/")
 
     assert response.status_code == 200
@@ -11,8 +11,7 @@ def test_home_returns_hello_world():
 
 
 def test_health_returns_healthy_status():
-    client = app.test_client()
-
+    client = flask_app.test_client()
     response = client.get("/health")
 
     assert response.status_code == 200

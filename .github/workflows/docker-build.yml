@@ -1,4 +1,4 @@
-name: Docker Build and Smoke Test
+name: Docker Build, Smoke Test and ECR Push
 
 on:
   push:
@@ -7,11 +7,17 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   docker-build-test:
-    name: Build and test Docker image
+    name: Build, test and publish Docker image
     runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REGISTRY: 156041445500.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REPOSITORY: aws-cicd-lab
 
     steps:
       - name: Checkout repository
@@ -37,6 +43,7 @@ jobs:
 
           for i in {1..15}; do
             if curl --fail --silent http://localhost:8080/health; then
+              echo
               break
             fi
 
@@ -52,7 +59,31 @@ jobs:
           curl --fail --silent http://localhost:8080/ \
             | grep -Fx "AWS CI/CD Lab - Hello World!"
 
+      - name: Configure AWS credentials using OIDC
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::156041445500:role/GitHubActions-ECR-Push-Lab
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push image to ECR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE_TAG: sha-${{ github.sha }}-run-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -e
+
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          docker tag aws-cicd-lab:ci "$IMAGE_URI"
+          docker push "$IMAGE_URI"
+
+          echo "Published image: $IMAGE_URI"
+
       - name: Remove test container
         if: always()
         run: docker rm -f aws-cicd-lab-test || true
-
